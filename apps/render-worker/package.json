@@ -1,0 +1,27 @@
+{
+  "name": "render-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "render:remotion": "echo \"Run from job remotion dir: npx remotion render src/index.ts <CompositionId> ../out/final.mp4 --gl=angle-egl\""
+  },
+  "dependencies": {
+    "@opus5_5/pipeline": "workspace:*",
+    "@opus5_5/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "optionalDependencies": {},
+  "peerDependenciesMeta": {
+    "remotion": { "optional": true },
+    "@remotion/cli": { "optional": true },
+    "@remotion/renderer": { "optional": true }
+  }
+}

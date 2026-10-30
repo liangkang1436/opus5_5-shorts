@@ -1,0 +1,26 @@
+import fs from "node:fs/promises";
+
+/**
+ * Minimal valid-ish MP4 (ftyp + free + mdat empty) so tools can see a file.
+ * Not a playable demo reel — only for --skip-render / CI.
+ */
+export async function writeTinyPlaceholderMp4(outPath: string): Promise<void> {
+  // ftyp box (isom)
+  const ftyp = Buffer.from([
+    0x00, 0x00, 0x00, 0x18, // size 24
+    0x66, 0x74, 0x79, 0x70, // ftyp
+    0x69, 0x73, 0x6f, 0x6d, // isom
+    0x00, 0x00, 0x02, 0x00,
+    0x69, 0x73, 0x6f, 0x6d,
+    0x6d, 0x70, 0x34, 0x31, // mp41
+  ]);
+  const free = Buffer.from([
+    0x00, 0x00, 0x00, 0x08,
+    0x66, 0x72, 0x65, 0x65, // free
+  ]);
+  const mdatHeader = Buffer.from([
+    0x00, 0x00, 0x00, 0x08,
+    0x6d, 0x64, 0x61, 0x74, // mdat
+  ]);
+  await fs.writeFile(outPath, Buffer.concat([ftyp, free, mdatHeader]));
+}
