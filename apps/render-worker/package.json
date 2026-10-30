@@ -18,10 +18,18 @@
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   },
-  "optionalDependencies": {},
+  "optionalDependencies": {
+    "@remotion/cli": "4.0.539",
+    "@remotion/renderer": "4.0.539",
+    "remotion": "4.0.539",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
   "peerDependenciesMeta": {
     "remotion": { "optional": true },
     "@remotion/cli": { "optional": true },
-    "@remotion/renderer": { "optional": true }
+    "@remotion/renderer": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true }
   }
 }

@@ -62,8 +62,81 @@ function run(cmd: string, args: string[], cwd: string): Promise<number> {
   });
 }
 
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Job remotion/ package.json lists remotion deps.
+ * If node_modules/remotion is missing, install there before render.
+ */
+async function ensureRemotionInstalled(remotionDir: string): Promise<void> {
+  const marker = path.join(remotionDir, "node_modules", "remotion");
+  if (await pathExists(marker)) {
+    console.log(`[render] remotion present → ${marker}`);
+    return;
+  }
+
+  const pkgPath = path.join(remotionDir, "package.json");
+  if (!(await pathExists(pkgPath))) {
+    throw new Error(
+      `missing ${pkgPath} — run make-worker first so scaffold writes remotion/package.json`,
+    );
+  }
+
+  console.log(
+    "[render] remotion/node_modules/remotion missing — installing job remotion deps…",
+  );
+  console.log(`[render] cwd=${remotionDir}`);
+
+  // Prefer npm: plain `pnpm install` inside .data/jobs/<id>/remotion walks up into
+  // the monorepo workspace and installs nothing locally (Windows LK-DEV bug).
+  let code: number;
+  try {
+    console.log("[render] trying: npm install");
+    code = await run("npm", ["install"], remotionDir);
+  } catch (err) {
+    console.warn(
+      `[render] npm spawn failed (${err instanceof Error ? err.message : String(err)}), falling back to pnpm --ignore-workspace`,
+    );
+    code = 1;
+  }
+
+  if (code !== 0) {
+    try {
+      console.log("[render] trying: pnpm install --ignore-workspace");
+      code = await run("pnpm", ["install", "--ignore-workspace"], remotionDir);
+    } catch (err) {
+      console.warn(
+        `[render] pnpm spawn failed (${err instanceof Error ? err.message : String(err)})`,
+      );
+      code = 1;
+    }
+  }
+
+  if (code !== 0) {
+    throw new Error(
+      `failed to install remotion deps in ${remotionDir} (npm/pnpm exit ${code})`,
+    );
+  }
+
+  if (!(await pathExists(marker))) {
+    throw new Error(
+      `install finished but ${marker} still missing — check remotion/package.json dependencies`,
+    );
+  }
+  console.log("[render] remotion deps installed for this job");
+}
+
 async function main(): Promise<void> {
-  const { jobId, jobDirPath, skipRender } = parseArgs(process.argv.slice(2).filter((a) => a !== "--"));
+  const { jobId, jobDirPath, skipRender } = parseArgs(
+    process.argv.slice(2).filter((a) => a !== "--"),
+  );
   if (!jobId && !jobDirPath) usage();
 
   const dir = jobDirPath
@@ -89,10 +162,16 @@ async function main(): Promise<void> {
   let status = statusParse.data;
 
   if (status.status === "repair_needed") {
-    console.error("[render] refuse: status=repair_needed (QA fail → repair only, never force deliver)");
+    console.error(
+      "[render] refuse: status=repair_needed (QA fail → repair only, never force deliver)",
+    );
     process.exit(2);
   }
-  if (status.status !== "ready_to_render" && status.status !== "render_skipped" && status.status !== "done") {
+  if (
+    status.status !== "ready_to_render" &&
+    status.status !== "render_skipped" &&
+    status.status !== "done"
+  ) {
     console.error(`[render] refuse: status=${status.status} (expected ready_to_render)`);
     process.exit(1);
   }
@@ -104,12 +183,15 @@ async function main(): Promise<void> {
   const compositionId =
     status.compositionId ??
     (
-      JSON.parse(await fs.readFile(path.join(remotionDir, "composition.json"), "utf8")) as {
+      JSON.parse(
+        await fs.readFile(path.join(remotionDir, "composition.json"), "utf8"),
+      ) as {
         compositionId: string;
       }
     ).compositionId;
 
   const now = () => new Date().toISOString();
+  const intendedCmd = `npx remotion render src/index.ts ${compositionId} ../out/final.mp4 --gl=angle-egl`;
 
   if (skipRender) {
     await writeStatus(dir, {
@@ -125,7 +207,7 @@ async function main(): Promise<void> {
         {
           skipped: true,
           reason: "--skip-render",
-          intendedCommand: `npx remotion render src/index.ts ${compositionId} ../out/final.mp4 --gl=angle-egl`,
+          intendedCommand: intendedCmd,
           remotionCwd: remotionDir,
           writtenAt: now(),
         },
@@ -135,9 +217,7 @@ async function main(): Promise<void> {
       "utf8",
     );
     console.log(`[render] skipped — placeholder mp4 → ${outMp4}`);
-    console.log(
-      `[render] intended: cd ${remotionDir} && npx remotion render src/index.ts ${compositionId} ../out/final.mp4 --gl=angle-egl`,
-    );
+    console.log(`[render] intended: cd ${remotionDir} && ${intendedCmd}`);
     return;
   }
 
@@ -148,7 +228,24 @@ async function main(): Promise<void> {
   };
   await writeStatus(dir, status);
 
-  // Prefer npx remotion with documented --gl=angle-egl
+  try {
+    await ensureRemotionInstalled(remotionDir);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await writeStatus(dir, {
+      ...status,
+      status: "failed",
+      updatedAt: now(),
+      error: message,
+    });
+    console.error(`[render] remotion install failed: ${message}`);
+    console.error(
+      "[render] Hint: from repo root run `pnpm run install:remotion`, or fix remotion/package.json, or use --skip-render",
+    );
+    process.exit(1);
+  }
+
+  // Prefer npx remotion with documented --gl=angle-egl (GPU on Windows / NVIDIA)
   const args = [
     "remotion",
     "render",

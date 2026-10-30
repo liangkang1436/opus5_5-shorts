@@ -2,14 +2,15 @@
   "name": "opus5_5-shorts",
   "private": true,
   "version": "0.1.0",
-  "description": "\u786c\u6838\u79d1\u666e\u77ed\u89c6\u9891 SaaS \u2014 Knife 1: make + render workers",
+  "description": "硬核科普短视频 SaaS — Knife 1: make + render workers",
   "packageManager": "pnpm@10.34.6",
   "scripts": {
     "build": "pnpm -r run build",
     "make": "pnpm --filter make-worker start",
     "render": "pnpm --filter render-worker start",
     "typecheck": "pnpm -r run typecheck",
-    "prepare": "pnpm --filter @opus5_5/shared build && pnpm --filter @opus5_5/pipeline build"
+    "prepare": "pnpm --filter @opus5_5/shared build && pnpm --filter @opus5_5/pipeline build",
+    "install:remotion": "pnpm add -w remotion@4.0.539 @remotion/cli@4.0.539 @remotion/renderer@4.0.539 react@19.0.0 react-dom@19.0.0 && pnpm add -wD @types/react@19.0.10 @types/react-dom@19.0.4"
   },
   "engines": {
     "node": ">=20"

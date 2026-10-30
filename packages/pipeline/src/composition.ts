@@ -15,6 +15,7 @@ const RES_MAP: Record<Resolution, { short: number; long: number }> = {
 /**
  * Resolve a single Remotion composition size from locked aspect + resolution.
  * Never returns dual (H+V) sizes.
+ * compositionId uses hyphens only — Remotion forbids `_` in composition ids.
  */
 export function resolveCompositionSize(
   aspect: Aspect,
@@ -27,14 +28,14 @@ export function resolveCompositionSize(
       width: short,
       height: long,
       fps,
-      compositionId: `Hardcore_${resolution}_9x16_${fps}`,
+      compositionId: `Hardcore-${resolution}-9x16-${fps}`,
     };
   }
   return {
     width: long,
     height: short,
     fps,
-    compositionId: `Hardcore_${resolution}_16x9_${fps}`,
+    compositionId: `Hardcore-${resolution}-16x9-${fps}`,
   };
 }
 
